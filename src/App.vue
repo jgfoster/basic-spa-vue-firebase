@@ -46,11 +46,11 @@
         </v-btn>
       </v-toolbar-items>
     </v-toolbar>
-    
+
     <v-content>
       <router-view></router-view>
     </v-content>
-    
+
   </v-app>
 </template>
 
@@ -58,13 +58,7 @@
   export default {
     data () {
       return {
-        // appTitle: 'Awesome App',
         sidebar: false
-        // menuItems: [
-        //   { title: 'Home', path: '/home', icon: 'home' },
-        //   { title: 'Sign Up', path: '/signup', icon: 'face' },
-        //   { title: 'Sign In', path: '/signin', icon: 'lock_open' }
-        // ]
       }
     },
     computed: {
@@ -81,7 +75,6 @@
           ]
         } else {
           return [
-            { title: 'Sign Up', path: '/signup', icon: 'face' },
             { title: 'Sign In', path: '/signin', icon: 'lock_open' }
           ]
         }

@@ -14,12 +14,12 @@
             </v-flex>
             <v-flex>
               <v-text-field
-                name="email"
-                label="Email"
-                id="email"
-                type="email"
-                v-model="email"
-                autocomplete="username email"
+                name="username"
+                label="CS Lab LDAP User ID (six characters)"
+                id="username"
+                type="text"
+                v-model="username"
+                autocomplete="username"
                 required></v-text-field>
             </v-flex>
             <v-flex>
@@ -46,14 +46,30 @@
 export default {
   data () {
     return {
-      email: '',
+      username: '',
       password: '',
       alert: false
     }
   },
   methods: {
     userSignIn () {
-      this.$store.dispatch('userSignIn', { email: this.email, password: this.password })
+      this.$store.commit('setLoading', true)
+      this.$store.commit('setError', null)
+      this.$store.dispatch(
+        'server',
+        {
+          path: 'signin.gs',
+          args: { username: this.username, password: this.password }
+        })
+        .then(result => {
+          this.$store.commit('setLoading', false)
+          this.$store.commit('setUser', result.username)
+          this.$router.push('/home')
+        },
+        error => {
+          console.log('Signin error from dispatch to server: ', error)
+          this.$store.commit('setLoading', false)
+        })
     }
   },
   computed: {

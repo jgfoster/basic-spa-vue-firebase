@@ -1,68 +1,124 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import firebase from 'firebase'
 import router from '@/router'
+import axios from 'axios'
 
 Vue.use(Vuex)
 
 export const store = new Vuex.Store({
   state: {
-    appTitle: 'My Awesome App',
+    appTitle: 'Mastery Grading',
     user: null,
     error: null,
-    loading: false
+    lastCall: null,
+    loading: false,
+    thisCall: null
   },
   mutations: {
-    setUser (state, payload) {
-      state.user = payload
-    },
     setError (state, payload) {
       state.error = payload
     },
+    setIsCallInProgress (state, payload) {
+      state.isCallInProgress = payload
+    },
+    setLastCall (state, payload) {
+      state.lastCall = payload
+    },
     setLoading (state, payload) {
       state.loading = payload
+    },
+    setThisCall (state, payload) {
+      state.thisCall = payload
+    },
+    setUser (state, payload) {
+      state.user = payload
     }
   },
   actions: {
-    userSignUp ({commit}, payload) {
-      commit('setLoading', true)
-      firebase.auth().createUserWithEmailAndPassword(payload.email, payload.password)
-        .then(firebaseUser => {
-          commit('setUser', {email: firebaseUser.user.email})
+    // payload = { path: "method.gs", args: {}}
+    server ({commit}, payload) {
+      return new Promise((resolve, reject) => {
+        commit('setLoading', true)
+        var seconds = 0
+        var msStart = (new Date()).getTime()
+        commit('setThisCall', payload.path + ' (0)')
+        var timer = setInterval(() => {
+          seconds = seconds + 1
+          commit('setThisCall', payload.path + ' (' + seconds + ')')
+        }, 1000) // milliseconds
+        var args = payload.args ? payload.args : { }
+        args.session = this.state.session
+        commit('setIsCallInProgress', true)
+        var ensure = (data) => {
+          clearInterval(timer)
+          commit('setThisCall', null)
+          commit('setIsCallInProgress', false)
+          var msStop = (new Date()).getTime()
+          var string = payload.path + ' ('
+          if (data.time) {
+            string = string + data.time + 'ms server + ' + (msStop - msStart - data.time)
+          } else {
+            string = string + (msStop - msStart)
+          }
+          string = string + 'ms other)'
+          console.log(string)
+          commit('setLastCall', string)
           commit('setLoading', false)
-          router.push('/home')
-        })
-        .catch(error => {
-          commit('setError', error.message)
-          commit('setLoading', false)
+        }
+        axios.post(payload.path, args)
+          .then(result => {
+            ensure(result.data)
+            var flag = result.data.success
+            delete result.data.success
+            delete result.data.time
+            store.commit('setUser', result.data.username)
+            delete result.data.username
+            if (flag) {
+              resolve(result.data)
+            } else {
+              commit('setError', result.data.error)
+              reject(result.data.error)
+            }
+          }, error => {
+            ensure(error)
+            if (error.response.status === 404) {
+              commit('setError', error.response.statusText + ': ' + error.request.responseURL)
+            } else {
+              commit('setError', error)
+            }
+            reject(error)
+          })
+      })
+    },
+    autoSignIn (store, payload) {
+      store.commit('setLoading', true)
+      store.dispatch(
+        'server', { path: 'username.gs' })
+        .then(result => {
+          console.log('autoSignIn as', result.username)
+          store.commit('setLoading', false)
+          if (result.username) {
+            store.commit('setUser', result.username)
+            router.push('/home')
+          }
+        },
+        error => {
+          store.commit('setLoading', false)
+          console.log(error)
         })
     },
-    userSignIn ({commit}, payload) {
-      commit('setLoading', true)
-      firebase.auth().signInWithEmailAndPassword(payload.email, payload.password)
-        .then(firebaseUser => {
-          commit('setUser', {email: firebaseUser.user.email})
-          commit('setLoading', false)
-          commit('setError', null)
-          router.push('/home')
-        })
-        .catch(error => {
-          commit('setError', error.message)
-          commit('setLoading', false)
-        })
-    },
-    autoSignIn ({commit}, payload) {
-      commit('setUser', {email: payload.email})
-    },
-    userSignOut ({commit}) {
-      firebase.auth().signOut()
-      commit('setUser', null)
+    userSignOut (store) {
+      store.commit('setUser', null)
+      store.dispatch('server', { path: 'signout.gs' })
       router.push('/')
     }
   },
   getters: {
     isAuthenticated (state) {
       return state.user !== null && state.user !== undefined
+    },
+    isCallInProgress (state) {
+      return state.isCallInProgress
     }
   }
 })

@@ -1,11 +1,10 @@
 import Vue from 'vue'
 import Router from 'vue-router'
-import firebase from 'firebase'
+import { store } from '../store'
 
 const routerOptions = [
   { path: '/', component: 'Landing' },
   { path: '/signin', component: 'Signin' },
-  { path: '/signup', component: 'Signup' },
   { path: '/home', component: 'Home', meta: { requiresAuth: true } },
   { path: '*', component: 'NotFound' }
 ]
@@ -26,7 +25,7 @@ const router = new Router({
 
 router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-  const isAuthenticated = firebase.auth().currentUser
+  const isAuthenticated = store.getters.isAuthenticated
   if (requiresAuth && !isAuthenticated) {
     next('/signin')
   } else {
